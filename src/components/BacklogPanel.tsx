@@ -1,5 +1,7 @@
+import { useDroppable } from '@dnd-kit/core'
 import { useState } from 'react'
-import type { BacklogItem } from '../types'
+import type { BacklogItem, ColumnId } from '../types'
+import { formatPoints, sumPoints } from '../points'
 import { ItemCard } from './ItemCard'
 import { ItemForm } from './ItemForm'
 
@@ -11,7 +13,8 @@ interface BacklogPanelProps {
     data: { title: string; description?: string; points?: number },
   ) => void
   onDelete: (id: string) => void
-  onMoveToTodo: (id: string) => void
+  onMove: (id: string, column: ColumnId) => void
+  onPointsChange: (id: string, points: number | undefined) => void
 }
 
 export function BacklogPanel({
@@ -19,15 +22,23 @@ export function BacklogPanel({
   onAdd,
   onUpdate,
   onDelete,
-  onMoveToTodo,
+  onMove,
+  onPointsChange,
 }: BacklogPanelProps) {
   const [editing, setEditing] = useState<BacklogItem | null>(null)
+  const { setNodeRef, isOver } = useDroppable({ id: 'backlog' })
+  const total = sumPoints(items)
 
   return (
     <section className="panel backlog-panel">
       <header className="panel-header">
         <h2>バックログ</h2>
-        <span className="count">{items.length} 件</span>
+        <div className="totals-row">
+          <span className="count">{items.length} 件</span>
+          <span className="points-total points-total-lg" title="バックログ合計">
+            合計 {formatPoints(total)}
+          </span>
+        </div>
       </header>
 
       {editing ? (
@@ -50,7 +61,10 @@ export function BacklogPanel({
         </div>
       )}
 
-      <div className="item-list">
+      <div
+        ref={setNodeRef}
+        className={`item-list${isOver ? ' drop-over' : ''}`}
+      >
         {items.length === 0 && <p className="empty">バックログは空です</p>}
         {items.map((item) => (
           <ItemCard
@@ -58,8 +72,10 @@ export function BacklogPanel({
             item={item}
             onEdit={setEditing}
             onDelete={onDelete}
-            onMove={(_id, _col) => onMoveToTodo(item.id)}
+            onMove={onMove}
+            onPointsChange={onPointsChange}
             moveTargets={[{ column: 'todo', label: '→ Todo' }]}
+            draggable
           />
         ))}
       </div>
