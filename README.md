@@ -9,7 +9,7 @@
 | Product Owner (PO) | ユーザー |
 | Development (+ Scrum Master 支援) | Grok Bot / エージェント |
 
-Sprint 3 Goal: **スプリントの振り返りを残せ、完了点数の履歴と簡易バーンダウンが見える**
+Sprint 4 Goal: **Doing の枚数上限を守れ、カードごとに受け入れ条件をチェックできる**
 
 ## 使い方（起動）
 
@@ -38,12 +38,13 @@ ai-scrum-lab/
 ├── docs/
 │   ├── SPRINT1.md
 │   ├── SPRINT2.md
-│   └── SPRINT3.md             # Sprint 3 レビュー用メモ
+│   ├── SPRINT3.md
+│   └── SPRINT4.md             # Sprint 4 レビュー用メモ
 ├── public/
 │   └── favicon.svg
 └── src/
     ├── main.tsx
-    ├── App.tsx                # 状態・DnD・終了/バーンダウン
+    ├── App.tsx                # 状態・DnD・WIP/AC ガード・終了/バーンダウン
     ├── App.css / index.css
     ├── types.ts
     ├── storage.ts
@@ -53,8 +54,8 @@ ai-scrum-lab/
         ├── SprintPanel.tsx    # ゴール・レトロ・バーンダウン・終了
         ├── VelocityPanel.tsx  # 完了スプリント履歴
         ├── BurndownChart.tsx  # SVG バーンダウン
-        ├── Board.tsx
-        ├── ItemCard.tsx
+        ├── Board.tsx          # 列・WIP 上限 UI
+        ├── ItemCard.tsx       # ポイント・受け入れ条件
         └── ItemForm.tsx
 ```
 
@@ -81,6 +82,14 @@ ai-scrum-lab/
 
 詳細は [`docs/SPRINT3.md`](docs/SPRINT3.md)。
 
+## Sprint 4 でできること
+
+1. **WIP 上限 (Doing)**: 上限を設定・永続化。件数 `N/上限` 表示。上限到達時は移動をブロック（確認で強制移動可）
+2. **受け入れ条件**: カードごとにチェックリストを追加 / トグル / 削除（localStorage）
+3. **Done 警告**: 未チェックの受け入れ条件があるカードを Done へ移すと確認ダイアログ
+
+詳細は [`docs/SPRINT4.md`](docs/SPRINT4.md)。
+
 ---
 
 ## AI駆動スクラムの回し方
@@ -102,8 +111,9 @@ PO（あなた）と Dev/SM（AI）で、このリポジトリとボードを使
 ### 3. デイリー（Daily）
 
 - ボードを見て Todo / Doing / Done を同期
+- Doing の WIP 上限と各カードの受け入れ条件を意識する
 - AI に「いま Doing の次の一手」やブロッカー解消を依頼
-- 終わったカードは **完了 (Done)** へ
+- 終わったカードは受け入れ条件を揃えてから **完了 (Done)** へ
 - バーンダウンとレトロ「途中」メモを軽く更新
 
 ### 4. スプリントレビュー

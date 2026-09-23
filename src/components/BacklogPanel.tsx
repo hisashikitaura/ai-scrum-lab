@@ -15,6 +15,9 @@ interface BacklogPanelProps {
   onDelete: (id: string) => void
   onMove: (id: string, column: ColumnId) => void
   onPointsChange: (id: string, points: number | undefined) => void
+  onAddCriterion: (itemId: string, text: string) => void
+  onToggleCriterion: (itemId: string, criterionId: string) => void
+  onRemoveCriterion: (itemId: string, criterionId: string) => void
 }
 
 export function BacklogPanel({
@@ -24,6 +27,9 @@ export function BacklogPanel({
   onDelete,
   onMove,
   onPointsChange,
+  onAddCriterion,
+  onToggleCriterion,
+  onRemoveCriterion,
 }: BacklogPanelProps) {
   const [editing, setEditing] = useState<BacklogItem | null>(null)
   const { setNodeRef, isOver } = useDroppable({ id: 'backlog' })
@@ -74,6 +80,9 @@ export function BacklogPanel({
             onDelete={onDelete}
             onMove={onMove}
             onPointsChange={onPointsChange}
+            onAddCriterion={onAddCriterion}
+            onToggleCriterion={onToggleCriterion}
+            onRemoveCriterion={onRemoveCriterion}
             moveTargets={[{ column: 'todo', label: '→ Todo' }]}
             draggable
           />

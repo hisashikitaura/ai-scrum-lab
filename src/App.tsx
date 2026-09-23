@@ -20,7 +20,13 @@ import {
   remainingPoints,
 } from './points'
 import { loadState, makeId, now, saveState } from './storage'
-import type { AppState, BacklogItem, ColumnId, SprintRecord } from './types'
+import {
+  hasIncompleteAcceptance,
+  type AppState,
+  type BacklogItem,
+  type ColumnId,
+  type SprintRecord,
+} from './types'
 import './App.css'
 
 const COLUMN_IDS: ColumnId[] = ['backlog', 'todo', 'doing', 'done']
@@ -110,6 +116,7 @@ function App() {
       column: 'backlog',
       createdAt: t,
       updatedAt: t,
+      acceptanceCriteria: [],
     }
     setState((s) => ({ ...s, items: [item, ...s.items] }))
   }
@@ -150,13 +157,111 @@ function App() {
     })
   }
 
-  function moveItem(id: string, column: ColumnId) {
+  function applyMove(id: string, column: ColumnId) {
     setState((s) => {
       const items = s.items.map((i) =>
         i.id === id ? { ...i, column, updatedAt: now() } : i,
       )
       return withBurndownIfNeeded(s, items)
     })
+  }
+
+  /**
+   * WIP 上限・受け入れ条件チェック付きの移動。
+   * ブロック優先。WIP 超過は確認で上書き可。Done へ未完了 AC がある場合も確認。
+   */
+  function requestMove(id: string, column: ColumnId) {
+    const current = state.items.find((i) => i.id === id)
+    if (!current || current.column === column) return
+
+    if (column === 'doing') {
+      const limit = state.wipLimitDoing
+      if (typeof limit === 'number' && limit > 0) {
+        const doingCount = state.items.filter((i) => i.column === 'doing').length
+        if (doingCount >= limit) {
+          const ok = window.confirm(
+            `Doing の WIP 上限（${doingCount}/${limit}）に達しています。\n` +
+              `上限を守るため移動をブロックしました。\n\n` +
+              `それでも強制的に移動しますか？`,
+          )
+          if (!ok) return
+        }
+      }
+    }
+
+    if (column === 'done' && hasIncompleteAcceptance(current)) {
+      const list = current.acceptanceCriteria ?? []
+      const open = list.filter((c) => !c.done).length
+      const ok = window.confirm(
+        `「${current.title}」には未チェックの受け入れ条件が ${open} 件あります。\n` +
+          `それでも完了 (Done) にしますか？`,
+      )
+      if (!ok) return
+    }
+
+    applyMove(id, column)
+  }
+
+  function setWipLimitDoing(limit: number | undefined) {
+    setState((s) => ({
+      ...s,
+      wipLimitDoing:
+        typeof limit === 'number' && limit > 0 ? Math.floor(limit) : undefined,
+    }))
+  }
+
+  function addCriterion(itemId: string, text: string) {
+    const trimmed = text.trim()
+    if (!trimmed) return
+    setState((s) => ({
+      ...s,
+      items: s.items.map((i) =>
+        i.id === itemId
+          ? {
+              ...i,
+              acceptanceCriteria: [
+                ...(i.acceptanceCriteria ?? []),
+                { id: makeId(), text: trimmed, done: false },
+              ],
+              updatedAt: now(),
+            }
+          : i,
+      ),
+    }))
+  }
+
+  function toggleCriterion(itemId: string, criterionId: string) {
+    setState((s) => ({
+      ...s,
+      items: s.items.map((i) =>
+        i.id === itemId
+          ? {
+              ...i,
+              acceptanceCriteria: (i.acceptanceCriteria ?? []).map((c) =>
+                c.id === criterionId ? { ...c, done: !c.done } : c,
+              ),
+              updatedAt: now(),
+            }
+          : i,
+      ),
+    }))
+  }
+
+  function removeCriterion(itemId: string, criterionId: string) {
+    setState((s) => ({
+      ...s,
+      items: s.items.map((i) =>
+        i.id === itemId
+          ? {
+              ...i,
+              acceptanceCriteria: (i.acceptanceCriteria ?? []).filter(
+                (c) => c.id !== criterionId,
+              ),
+              updatedAt: now(),
+            }
+          : i,
+      ),
+    }))
   }
 
   function startSprint(goal: string) {
@@ -227,7 +332,7 @@ function App() {
     if (!targetColumn) return
     const current = state.items.find((i) => i.id === itemId)
     if (!current || current.column === targetColumn) return
-    moveItem(itemId, targetColumn)
+    requestMove(itemId, targetColumn)
   }
 
   function handleDragCancel() {
@@ -289,24 +394,32 @@ function App() {
             onAdd={addItem}
             onUpdate={updateItem}
             onDelete={deleteItem}
-            onMove={moveItem}
+            onMove={requestMove}
             onPointsChange={setItemPoints}
+            onAddCriterion={addCriterion}
+            onToggleCriterion={toggleCriterion}
+            onRemoveCriterion={removeCriterion}
           />
           <Board
             items={boardItems}
-            onMove={moveItem}
+            wipLimitDoing={state.wipLimitDoing}
+            onMove={requestMove}
             onPointsChange={setItemPoints}
+            onAddCriterion={addCriterion}
+            onToggleCriterion={toggleCriterion}
+            onRemoveCriterion={removeCriterion}
+            onWipLimitChange={setWipLimitDoing}
           />
         </div>
         <DragOverlay dropAnimation={null}>
           {activeItem ? (
-            <ItemCard item={activeItem} showActions={false} />
+            <ItemCard item={activeItem} showActions={false} showAcceptance={false} />
           ) : null}
         </DragOverlay>
       </DndContext>
 
       <footer className="app-footer">
-        <span>Sprint 3 · レトロ / ベロシティ / バーンダウン</span>
+        <span>Sprint 4 · WIP 上限 / 受け入れ条件 / Done 警告</span>
         <span>永続化: localStorage</span>
       </footer>
     </div>
