@@ -1,9 +1,12 @@
 import { useState, type FormEvent } from 'react'
+import { formatPoints } from '../points'
 import type { Sprint } from '../types'
 import { BurndownChart } from './BurndownChart'
 
 interface SprintPanelProps {
   sprint: Sprint | null
+  /** Done 列の現在ポイント（終了確認ダイアログ用） */
+  donePoints: number
   onStart: (goal: string) => void
   onEnd: () => void
   onRetroChange: (
@@ -14,6 +17,7 @@ interface SprintPanelProps {
 
 export function SprintPanel({
   sprint,
+  donePoints,
   onStart,
   onEnd,
   onRetroChange,
@@ -31,7 +35,14 @@ export function SprintPanel({
   }
 
   function handleEnd() {
-    if (!window.confirm('スプリントを終了し、完了点数を履歴に残しますか？')) return
+    const pts = formatPoints(donePoints)
+    if (
+      !window.confirm(
+        `Done 列の ${pts} をベロシティ履歴に記録してスプリントを終了しますか？`,
+      )
+    ) {
+      return
+    }
     onEnd()
   }
 
@@ -54,6 +65,12 @@ export function SprintPanel({
             })}{' '}
             (JST)
           </p>
+
+          <ol className="end-flow-guide">
+            <li>終了時レトロを書く</li>
+            <li>「終了してベロシティに記録」を押す</li>
+            <li>下のベロシティパネルを確認する</li>
+          </ol>
 
           <div className="retro-block">
             <h3 className="retro-heading">レトロメモ</h3>
@@ -97,9 +114,9 @@ export function SprintPanel({
             />
           </div>
 
-          <div className="form-actions" style={{ marginTop: '0.75rem' }}>
+          <div className="form-actions end-flow-actions" style={{ marginTop: '0.75rem' }}>
             <button type="button" className="btn btn-primary" onClick={handleEnd}>
-              スプリントを終了
+              終了してベロシティに記録
             </button>
             <button
               type="button"
@@ -109,6 +126,9 @@ export function SprintPanel({
               新しいスプリントを開始…
             </button>
           </div>
+          <p className="hint end-flow-hint">
+            主ボタンは終了のみ（履歴へ記録）。副ボタンは終了してから別ゴールで新規開始します。
+          </p>
         </div>
       )}
 
@@ -116,7 +136,9 @@ export function SprintPanel({
         <form className="item-form" onSubmit={handleSubmit}>
           {sprint?.active && replacing && (
             <p className="hint">
-              開始すると現在のスプリントを終了し、履歴に残してから新しいゴールで開始します。
+              開始すると現在のスプリントを終了し、Done の{' '}
+              {formatPoints(donePoints)}{' '}
+              を履歴に残してから新しいゴールで開始します。
             </p>
           )}
           <div className="field">

@@ -75,6 +75,7 @@ function withBurndownIfNeeded(s: AppState, items: BacklogItem[]): AppState {
 function App() {
   const [state, setState] = useState<AppState>(() => loadState())
   const [activeId, setActiveId] = useState<string | null>(null)
+  const [endSuccess, setEndSuccess] = useState<{ points: number } | null>(null)
 
   useEffect(() => {
     saveState(state)
@@ -159,6 +160,7 @@ function App() {
   }
 
   function startSprint(goal: string) {
+    setEndSuccess(null)
     setState((s) => {
       const { state: afterArchive } = archiveSprint(s)
       const t = now()
@@ -179,7 +181,10 @@ function App() {
   }
 
   function endSprint() {
+    if (!state.sprint?.active) return
+    const completed = donePoints(state.items)
     setState((s) => archiveSprint(s).state)
+    setEndSuccess({ points: completed })
   }
 
   function updateRetro(
@@ -195,6 +200,7 @@ function App() {
   function resetData() {
     if (!window.confirm('すべてのデータを初期状態に戻しますか？')) return
     localStorage.removeItem('ai-scrum-lab:v1')
+    setEndSuccess(null)
     setState(loadState())
   }
 
@@ -245,10 +251,28 @@ function App() {
 
       <SprintPanel
         sprint={state.sprint}
+        donePoints={donePoints(state.items)}
         onStart={startSprint}
         onEnd={endSprint}
         onRetroChange={updateRetro}
       />
+
+      {endSuccess && (
+        <div className="success-banner" role="status">
+          <div>
+            <strong>スプリントを終了しました。</strong>
+            Done の {endSuccess.points}pt を履歴に記録しました。下のベロシティパネルを確認してください。
+          </div>
+          <button
+            type="button"
+            className="btn btn-sm btn-ghost"
+            onClick={() => setEndSuccess(null)}
+            aria-label="バナーを閉じる"
+          >
+            閉じる
+          </button>
+        </div>
+      )}
 
       <VelocityPanel history={state.history} />
 
