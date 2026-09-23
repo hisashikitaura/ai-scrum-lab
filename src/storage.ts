@@ -13,17 +13,17 @@ export function createSeedItems(): BacklogItem[] {
   return [
     {
       id: makeId(),
-      title: 'カードのストーリーポイント編集',
-      description: '各カードでポイントを付け・変更し、localStorage に残す',
-      points: 2,
+      title: 'レトロメモの保存',
+      description: 'スプリント開始・途中・終了のメモを localStorage に残す',
+      points: 3,
       column: 'todo',
       createdAt: t,
       updatedAt: t,
     },
     {
       id: makeId(),
-      title: '列間ドラッグ＆ドロップ',
-      description: 'Todo / Doing / Done（とバックログ）を DnD で移動',
+      title: 'スプリント終了とベロシティ',
+      description: '終了時に Done 点数を履歴へ。完了スプリントの平均を表示',
       points: 5,
       column: 'todo',
       createdAt: t,
@@ -31,17 +31,17 @@ export function createSeedItems(): BacklogItem[] {
     },
     {
       id: makeId(),
-      title: 'ポイント合計の表示',
-      description: 'バックログ合計とボード列・スプリント合計を出す',
-      points: 2,
+      title: '簡易バーンダウン',
+      description: '残ポイントの推移を SVG で表示（ステータス変更でスナップショット）',
+      points: 5,
       column: 'doing',
       createdAt: t,
       updatedAt: t,
     },
     {
       id: makeId(),
-      title: 'Sprint 2 ドキュメント',
-      description: 'docs/SPRINT2.md と README 更新',
+      title: 'Sprint 3 ドキュメント',
+      description: 'docs/SPRINT3.md と README 更新',
       points: 1,
       column: 'backlog',
       createdAt: t,
@@ -49,8 +49,8 @@ export function createSeedItems(): BacklogItem[] {
     },
     {
       id: makeId(),
-      title: 'ボタン移動の維持',
-      description: 'DnD できなくても従来の移動ボタンで操作できること',
+      title: 'ビルド確認',
+      description: 'npm run build が通ること',
       points: 1,
       column: 'backlog',
       createdAt: t,
@@ -59,26 +59,47 @@ export function createSeedItems(): BacklogItem[] {
   ]
 }
 
+function normalizeState(parsed: Partial<AppState>): AppState | null {
+  if (!parsed || !Array.isArray(parsed.items)) return null
+  return {
+    items: parsed.items,
+    sprint: parsed.sprint ?? null,
+    history: Array.isArray(parsed.history) ? parsed.history : [],
+    seeded: Boolean(parsed.seeded),
+  }
+}
+
 export function loadState(): AppState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (raw) {
-      const parsed = JSON.parse(raw) as AppState
-      if (parsed && Array.isArray(parsed.items)) {
-        return parsed
-      }
+      const parsed = JSON.parse(raw) as Partial<AppState>
+      const normalized = normalizeState(parsed)
+      if (normalized) return normalized
     }
   } catch {
     // ignore corrupt storage
   }
+  const items = createSeedItems()
+  const remaining = items
+    .filter((i) => i.column === 'todo' || i.column === 'doing')
+    .reduce((s, i) => s + (i.points ?? 0), 0)
+  const committed = items
+    .filter((i) => i.column !== 'backlog')
+    .reduce((s, i) => s + (i.points ?? 0), 0)
+  const t = now()
   return {
-    items: createSeedItems(),
+    items,
     sprint: {
       id: makeId(),
-      goal: 'カードを列間でドラッグでき、各カードにポイントを付けられる',
-      startedAt: now(),
+      goal: 'スプリントの振り返りを残せ、完了点数の履歴と簡易バーンダウンが見える',
+      startedAt: t,
       active: true,
+      committedPoints: committed,
+      burndown: [{ at: t, remaining }],
+      retroStart: 'Sprint 3 開始。レトロ・ベロシティ・バーンダウンを実装する。',
     },
+    history: [],
     seeded: true,
   }
 }

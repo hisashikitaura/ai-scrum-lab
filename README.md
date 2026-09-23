@@ -9,7 +9,7 @@
 | Product Owner (PO) | ユーザー |
 | Development (+ Scrum Master 支援) | Grok Bot / エージェント |
 
-Sprint 2 Goal: **カードを列間でドラッグでき、各カードにポイントを付けられる**（＋合計表示）
+Sprint 3 Goal: **スプリントの振り返りを残せ、完了点数の履歴と簡易バーンダウンが見える**
 
 ## 使い方（起動）
 
@@ -37,21 +37,24 @@ ai-scrum-lab/
 ├── package.json
 ├── docs/
 │   ├── SPRINT1.md
-│   └── SPRINT2.md             # Sprint 2 レビュー用メモ
+│   ├── SPRINT2.md
+│   └── SPRINT3.md             # Sprint 3 レビュー用メモ
 ├── public/
 │   └── favicon.svg
 └── src/
     ├── main.tsx
-    ├── App.tsx                # 状態・DnD コンテキスト
+    ├── App.tsx                # 状態・DnD・終了/バーンダウン
     ├── App.css / index.css
     ├── types.ts
     ├── storage.ts
-    ├── points.ts              # ポイント合計ヘルパー
+    ├── points.ts              # 合計・残ポイント・平均ベロシティ
     └── components/
         ├── BacklogPanel.tsx
-        ├── SprintPanel.tsx
-        ├── Board.tsx          # 列 droppable + 列合計
-        ├── ItemCard.tsx       # ドラッグハンドル・ポイント編集
+        ├── SprintPanel.tsx    # ゴール・レトロ・バーンダウン・終了
+        ├── VelocityPanel.tsx  # 完了スプリント履歴
+        ├── BurndownChart.tsx  # SVG バーンダウン
+        ├── Board.tsx
+        ├── ItemCard.tsx
         └── ItemForm.tsx
 ```
 
@@ -69,6 +72,14 @@ ai-scrum-lab/
 3. **合計表示**: バックログ合計、各列の合計、ボード（スプリント）合計
 
 詳細は [`docs/SPRINT2.md`](docs/SPRINT2.md)。
+
+## Sprint 3 でできること
+
+1. **レトロメモ**: 開始時 / 途中 / 終了時のメモをスプリントに保存
+2. **スプリント終了 → 履歴**: Done の完了点数をベロシティ履歴へ。平均 pt を表示
+3. **簡易バーンダウン**: 残ポイント（Todo+Doing）の推移を SVG 表示（列移動・ポイント変更でスナップショット）
+
+詳細は [`docs/SPRINT3.md`](docs/SPRINT3.md)。
 
 ---
 
@@ -93,6 +104,7 @@ PO（あなた）と Dev/SM（AI）で、このリポジトリとボードを使
 - ボードを見て Todo / Doing / Done を同期
 - AI に「いま Doing の次の一手」やブロッカー解消を依頼
 - 終わったカードは **完了 (Done)** へ
+- バーンダウンとレトロ「途中」メモを軽く更新
 
 ### 4. スプリントレビュー
 
@@ -102,9 +114,9 @@ PO（あなた）と Dev/SM（AI）で、このリポジトリとボードを使
 
 ### 5. レトロスペクティブ
 
-- Keep / Problem / Try を短く洗い出し
-- 次スプリントのプロセス改善（プロンプト、DoD、ボード運用）を1つ決める
-- 必要なら README / docs を更新して学習を蓄積する
+- ボード上のレトロメモ（開始 / 途中 / 終了）に Keep / Problem / Try を短く書く
+- 「スプリントを終了」で完了点数を履歴に残す
+- 次スプリントのプロセス改善を1つ決める
 
 ---
 

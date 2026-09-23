@@ -13,14 +13,63 @@ import { BacklogPanel } from './components/BacklogPanel'
 import { Board } from './components/Board'
 import { ItemCard } from './components/ItemCard'
 import { SprintPanel } from './components/SprintPanel'
+import { VelocityPanel } from './components/VelocityPanel'
+import {
+  boardPoints,
+  donePoints,
+  remainingPoints,
+} from './points'
 import { loadState, makeId, now, saveState } from './storage'
-import type { AppState, BacklogItem, ColumnId } from './types'
+import type { AppState, BacklogItem, ColumnId, SprintRecord } from './types'
 import './App.css'
 
 const COLUMN_IDS: ColumnId[] = ['backlog', 'todo', 'doing', 'done']
 
 function isColumnId(id: string): id is ColumnId {
   return (COLUMN_IDS as string[]).includes(id)
+}
+
+function archiveSprint(s: AppState): { state: AppState; record: SprintRecord | null } {
+  if (!s.sprint?.active) return { state: s, record: null }
+  const endedAt = now()
+  const completed = donePoints(s.items)
+  const committed = s.sprint.committedPoints ?? boardPoints(s.items)
+  const record: SprintRecord = {
+    id: s.sprint.id,
+    goal: s.sprint.goal,
+    startedAt: s.sprint.startedAt,
+    endedAt,
+    completedPoints: completed,
+    committedPoints: committed,
+    retroStart: s.sprint.retroStart,
+    retroDuring: s.sprint.retroDuring,
+    retroEnd: s.sprint.retroEnd,
+  }
+  return {
+    state: {
+      ...s,
+      sprint: { ...s.sprint, active: false, endedAt },
+      history: [record, ...s.history],
+    },
+    record,
+  }
+}
+
+/** 残ポイントが変わったときだけバーンドウンスナップショットを追加 */
+function withBurndownIfNeeded(s: AppState, items: BacklogItem[]): AppState {
+  if (!s.sprint?.active) return { ...s, items }
+  const rem = remainingPoints(items)
+  const snaps = s.sprint.burndown ?? []
+  const last = snaps[snaps.length - 1]
+  if (last && last.remaining === rem) return { ...s, items }
+  return {
+    ...s,
+    items,
+    sprint: {
+      ...s.sprint,
+      burndown: [...snaps, { at: now(), remaining: rem }],
+    },
+  }
 }
 
 function App() {
@@ -68,9 +117,8 @@ function App() {
     id: string,
     data: { title: string; description?: string; points?: number },
   ) {
-    setState((s) => ({
-      ...s,
-      items: s.items.map((i) =>
+    setState((s) => {
+      const items = s.items.map((i) =>
         i.id === id
           ? {
               ...i,
@@ -80,42 +128,68 @@ function App() {
               updatedAt: now(),
             }
           : i,
-      ),
-    }))
+      )
+      return withBurndownIfNeeded(s, items)
+    })
   }
 
   function setItemPoints(id: string, points: number | undefined) {
-    setState((s) => ({
-      ...s,
-      items: s.items.map((i) =>
+    setState((s) => {
+      const items = s.items.map((i) =>
         i.id === id ? { ...i, points, updatedAt: now() } : i,
-      ),
-    }))
+      )
+      return withBurndownIfNeeded(s, items)
+    })
   }
 
   function deleteItem(id: string) {
-    setState((s) => ({ ...s, items: s.items.filter((i) => i.id !== id) }))
+    setState((s) => {
+      const items = s.items.filter((i) => i.id !== id)
+      return withBurndownIfNeeded(s, items)
+    })
   }
 
   function moveItem(id: string, column: ColumnId) {
-    setState((s) => ({
-      ...s,
-      items: s.items.map((i) =>
+    setState((s) => {
+      const items = s.items.map((i) =>
         i.id === id ? { ...i, column, updatedAt: now() } : i,
-      ),
-    }))
+      )
+      return withBurndownIfNeeded(s, items)
+    })
   }
 
   function startSprint(goal: string) {
-    setState((s) => ({
-      ...s,
-      sprint: {
-        id: makeId(),
-        goal,
-        startedAt: now(),
-        active: true,
-      },
-    }))
+    setState((s) => {
+      const { state: afterArchive } = archiveSprint(s)
+      const t = now()
+      const rem = remainingPoints(afterArchive.items)
+      const committed = boardPoints(afterArchive.items)
+      return {
+        ...afterArchive,
+        sprint: {
+          id: makeId(),
+          goal,
+          startedAt: t,
+          active: true,
+          committedPoints: committed,
+          burndown: [{ at: t, remaining: rem }],
+        },
+      }
+    })
+  }
+
+  function endSprint() {
+    setState((s) => archiveSprint(s).state)
+  }
+
+  function updateRetro(
+    field: 'retroStart' | 'retroDuring' | 'retroEnd',
+    value: string,
+  ) {
+    setState((s) => {
+      if (!s.sprint) return s
+      return { ...s, sprint: { ...s.sprint, [field]: value } }
+    })
   }
 
   function resetData() {
@@ -169,7 +243,14 @@ function App() {
         </button>
       </header>
 
-      <SprintPanel sprint={state.sprint} onStart={startSprint} />
+      <SprintPanel
+        sprint={state.sprint}
+        onStart={startSprint}
+        onEnd={endSprint}
+        onRetroChange={updateRetro}
+      />
+
+      <VelocityPanel history={state.history} />
 
       <DndContext
         sensors={sensors}
@@ -201,7 +282,7 @@ function App() {
       </DndContext>
 
       <footer className="app-footer">
-        <span>Sprint 2 · DnD / ポイント / 合計</span>
+        <span>Sprint 3 · レトロ / ベロシティ / バーンダウン</span>
         <span>永続化: localStorage</span>
       </footer>
     </div>

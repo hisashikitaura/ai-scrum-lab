@@ -1,12 +1,23 @@
 import { useState, type FormEvent } from 'react'
 import type { Sprint } from '../types'
+import { BurndownChart } from './BurndownChart'
 
 interface SprintPanelProps {
   sprint: Sprint | null
   onStart: (goal: string) => void
+  onEnd: () => void
+  onRetroChange: (
+    field: 'retroStart' | 'retroDuring' | 'retroEnd',
+    value: string,
+  ) => void
 }
 
-export function SprintPanel({ sprint, onStart }: SprintPanelProps) {
+export function SprintPanel({
+  sprint,
+  onStart,
+  onEnd,
+  onRetroChange,
+}: SprintPanelProps) {
   const [goal, setGoal] = useState('')
   const [replacing, setReplacing] = useState(false)
 
@@ -17,6 +28,11 @@ export function SprintPanel({ sprint, onStart }: SprintPanelProps) {
     onStart(g)
     setGoal('')
     setReplacing(false)
+  }
+
+  function handleEnd() {
+    if (!window.confirm('スプリントを終了し、完了点数を履歴に残しますか？')) return
+    onEnd()
   }
 
   const showForm = !sprint?.active || replacing
@@ -38,8 +54,58 @@ export function SprintPanel({ sprint, onStart }: SprintPanelProps) {
             })}{' '}
             (JST)
           </p>
+
+          <div className="retro-block">
+            <h3 className="retro-heading">レトロメモ</h3>
+            <div className="field">
+              <label htmlFor="retro-start">開始時</label>
+              <textarea
+                id="retro-start"
+                rows={2}
+                value={sprint.retroStart ?? ''}
+                onChange={(e) => onRetroChange('retroStart', e.target.value)}
+                placeholder="期待・不安など"
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="retro-during">途中</label>
+              <textarea
+                id="retro-during"
+                rows={2}
+                value={sprint.retroDuring ?? ''}
+                onChange={(e) => onRetroChange('retroDuring', e.target.value)}
+                placeholder="気づき・ブロッカー"
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="retro-end">終了時</label>
+              <textarea
+                id="retro-end"
+                rows={2}
+                value={sprint.retroEnd ?? ''}
+                onChange={(e) => onRetroChange('retroEnd', e.target.value)}
+                placeholder="Keep / Problem / Try"
+              />
+            </div>
+          </div>
+
+          <div className="burndown-block">
+            <h3 className="retro-heading">バーンダウン</h3>
+            <BurndownChart
+              snapshots={sprint.burndown ?? []}
+              committedPoints={sprint.committedPoints}
+            />
+          </div>
+
           <div className="form-actions" style={{ marginTop: '0.75rem' }}>
-            <button type="button" className="btn btn-sm" onClick={() => setReplacing(true)}>
+            <button type="button" className="btn btn-primary" onClick={handleEnd}>
+              スプリントを終了
+            </button>
+            <button
+              type="button"
+              className="btn btn-sm"
+              onClick={() => setReplacing(true)}
+            >
               新しいスプリントを開始…
             </button>
           </div>
@@ -48,6 +114,11 @@ export function SprintPanel({ sprint, onStart }: SprintPanelProps) {
 
       {showForm && (
         <form className="item-form" onSubmit={handleSubmit}>
+          {sprint?.active && replacing && (
+            <p className="hint">
+              開始すると現在のスプリントを終了し、履歴に残してから新しいゴールで開始します。
+            </p>
+          )}
           <div className="field">
             <label htmlFor="sprint-goal">スプリントゴール</label>
             <input
